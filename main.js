@@ -1,40 +1,9 @@
-const { app, BrowserWindow, BrowserView, session, Menu } = require("electron");
-
-// Establece el menú en la aplicación
-const menu = Menu.buildFromTemplate([{
-        label: "Cuenta",
-        submenu: [{
-                label: "Limpiar sesión",
-                click: () => clearSession(),
-            },
-            {
-                type: "separator",
-            },
-            {
-                label: "Salir",
-                role: "quit",
-            },
-        ],
-    },
-    {
-        label: "Editar",
-        submenu: [
-            { role: "undo" },
-            { role: "redo" },
-            { type: "separator" },
-            { role: "cut" },
-            { role: "copy" },
-            { role: "paste" },
-            { role: "selectAll" },
-        ],
-    },
-]);
+const { app, BrowserWindow, BrowserView, Menu } = require("electron");
 
 let mainWindow;
 
 function createWindow() {
-    Menu.setApplicationMenu(menu);
-
+    /// Seteo la ventana.
     mainWindow = new BrowserWindow({
         focusable: true,
         width: 800,
@@ -57,13 +26,50 @@ function createWindow() {
     view.setBounds({ x: 0, y: 0, width: 800, height: contentHeight });
     view.setAutoResize({ width: true, height: true });
 
-    // Limpia la sesión (incluido el caché) antes de cargar la URL
-    // Carga la URL en la BrowserView después de limpiar la sesión
     view.webContents.loadURL("https://plataforma.coderhouse.com/");
 
-    // mainWindow.on("closed", () => {
-    //   mainWindow = null;
-    // });
+    /// Cargo el menu.
+    const menu = Menu.buildFromTemplate([{
+        label: "View",
+        submenu: [{
+                label: "Reload",
+                accelerator: "CmdOrCtrl+R",
+                click: () => {
+                    try {
+                        view.webContents.session.clearStorageData().then(() => {
+                            view.webContents.reload();
+                        });
+                    } catch (error) {
+                        console.log(error);
+                    }
+                },
+            },
+            {
+                label: "Navigation",
+                submenu: [{
+                        label: "Back",
+                        accelerator: "CmdOrCtrl+Left",
+                        click: () => {
+                            if (view.webContents.canGoBack()) {
+                                view.webContents.goBack();
+                            }
+                        },
+                    },
+                    {
+                        label: "Forward",
+                        accelerator: "CmdOrCtrl+Right",
+                        click: () => {
+                            if (view.webContents.canGoForward()) {
+                                view.webContents.goForward();
+                            }
+                        },
+                    },
+                ],
+            },
+        ],
+    }, ]);
+
+    Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(() => {
@@ -77,32 +83,3 @@ app.whenReady().then(() => {
 app.on("window-all-closed", function() {
     if (process.platform !== "darwin") app.quit();
 });
-
-const clearSession = () => {
-    console.log("clearSession");
-
-    // Obtiene la sesión actual
-    const currentSession = session.fromPartition("");
-
-    // Define qué datos de sesión deseas limpiar
-    const options = {
-        storages: [
-            "cookies",
-            "appcache",
-            "filesystem",
-            "indexdb",
-            "localstorage",
-            "shadercache",
-            "websql",
-            "serviceworkers",
-        ],
-    };
-
-    // Limpia los datos de sesión
-    currentSession.clearStorageData(options, () => {
-        console.log("Sesión limpiada");
-
-        const view = mainWindow.getBrowserView();
-        view.webContents.reload();
-    });
-};
