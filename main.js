@@ -1,8 +1,11 @@
-const { app, BrowserWindow, BrowserView, Menu } = require("electron");
+const { app, BrowserWindow, BrowserView, Menu, ipcMain } = require("electron");
+const path = require("path");
+const electronIpcMain = require("electron").ipcMain;
 
 let mainWindow;
+let coderView;
 
-function createWindow() {
+function createCoderWindow() {
     /// Seteo la ventana.
     mainWindow = new BrowserWindow({
         focusable: true,
@@ -14,72 +17,66 @@ function createWindow() {
         minHeight: 800,
         icon: __dirname + "assets/icons/win/icon.ico",
         webPreferences: {
-            nodeIntegration: true,
+            preload: path.join(__dirname, "preload.js"),
+            nodeIntegration: false,
+            javascript: true,
+            contextIsolation: true, // must be set to true when contextBridge is enabled
+            nodeIntegrationInWorker: true, // must be set to true when contextBridge is enabled
+            // preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY, // preload script enable contextBridge
         },
     });
 
-    const view = new BrowserView();
-    mainWindow.setBrowserView(view);
+    coderView = new BrowserView();
+    mainWindow.setBrowserView(coderView);
 
-    let contentHeight = mainWindow.getContentSize()[1];
 
-    view.setBounds({ x: 0, y: 0, width: 800, height: contentHeight });
-    view.setAutoResize({ width: true, height: true });
+    // let contentHeight = mainWindow.getContentSize()[1];
 
-    view.webContents.loadURL("https://plataforma.coderhouse.com/");
+    // view.setBounds({ x: 0, y: 0, width: 800, height: contentHeight });
+    // view.setAutoResize({ width: true, height: true });
 
-    /// Cargo el menu.
-    const menu = Menu.buildFromTemplate([{
-        label: "View",
-        submenu: [{
-                label: "Reload",
-                accelerator: "CmdOrCtrl+R",
-                click: () => {
-                    try {
-                        view.webContents.session.clearStorageData().then(() => {
-                            view.webContents.reload();
-                        });
-                    } catch (error) {
-                        console.log(error);
-                    }
-                },
-            },
-            {
-                label: "Navigation",
-                submenu: [{
-                        label: "Back",
-                        accelerator: "CmdOrCtrl+Left",
-                        click: () => {
-                            if (view.webContents.canGoBack()) {
-                                view.webContents.goBack();
-                            }
-                        },
-                    },
-                    {
-                        label: "Forward",
-                        accelerator: "CmdOrCtrl+Right",
-                        click: () => {
-                            if (view.webContents.canGoForward()) {
-                                view.webContents.goForward();
-                            }
-                        },
-                    },
-                ],
-            },
-        ],
-    }, ]);
+    mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
+    view.webContents.setUserAgent("chrome");
 
-    Menu.setApplicationMenu(menu);
+    // // Escuchar eventos IPC para avanzar y retroceder
+    // ipcMain.on("go-back", () => {
+    //     console("main js go back");
+    // if (coderView.webContents.canGoBack()) {
+    //     coderView.webContents.goBack();
+    // }
+    // });
+
+    // ipcMain.on("go-forward", () => {
+    //     console("main js go forward");
+    //     if (coderView.webContents.canGoForward()) {
+    //         coderView.webContents.goForward();
+    //     }
+    // });
+
+    mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
-    createWindow();
+    createCoderWindow();
 
     app.on("activate", function() {
-        if (mainWindow === null) createWindow();
+        if (mainWindow === null) createCoderWindow();
     });
 });
 
 app.on("window-all-closed", function() {
     if (process.platform !== "darwin") app.quit();
+});
+
+// Listen for a message on the 'buttonClick' channel
+electronIpcMain.on("buttonClick", (event, data) => {
+    console.log("Recupero browserView"); // Testing
+
+    if (coderView.webContents.canGoBack()) {
+        console.log('Puedo ir atras');
+        browserView.webContents.goBack();
+    } else {
+        console.log('NO Puedo ir atras');
+
+    }
 });
